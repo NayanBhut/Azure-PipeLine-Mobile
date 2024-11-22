@@ -1,6 +1,6 @@
 # Azure-Pipeline-Mobile
 
-[![Generate android and iOS build](https://github.com/NayanBhut/Azure-PipeLine-Mobile/actions/workflows/CreateBuild.yml/badge.svg?branch=main&event=check_run)](https://github.com/NayanBhut/Azure-PipeLine-Mobile/actions/workflows/CreateBuild.yml)
+[![Generate android and iOS build](https://github.com/NayanBhut/Azure-PipeLine-Mobile/actions/workflows/CreateBuild.yml/badge.svg?branch=main)](https://github.com/NayanBhut/Azure-PipeLine-Mobile/actions/workflows/CreateBuild.yml)
 
 Unofficial Azure client for Android/iOS. Made in React Native
 
