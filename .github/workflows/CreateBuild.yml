@@ -18,6 +18,7 @@ jobs:
         run: |
           npm install && cd ios && pod install
           cd ..
+          cd android
           "$(pwd)/gradlew" assembleRelease
 
           # xcodebuild -sdk iphoneos -configuration Debug -workspace AzurePipeline.xcworkspace -scheme AzurePipeline build -verbose -skipMacroValidation
