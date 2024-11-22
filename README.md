@@ -5,7 +5,7 @@
 Unofficial Azure client for Android/iOS. Made in React Native
 
 ## Features
-✅ Login and logout to switch users\
+✅ Login and logout to switch users (Follow this docs to create a token: https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=Windows#create-a-pat) \
 ✅ Get App List\
 ✅ Get Pipelines For Selected App\
 ✅ Get Builds For Selected PipeLine\
