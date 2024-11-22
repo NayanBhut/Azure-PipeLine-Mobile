@@ -1,0 +1,23 @@
+name: Generate android and iOS build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Generate android and iOS build
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Generate android and iOS build
+        run: |
+          npm install && cd ios && pod install
+          cd ..
+          "$(pwd)/gradlew" assembleRelease
+
+          # xcodebuild -sdk iphoneos -configuration Debug -workspace AzurePipeline.xcworkspace -scheme AzurePipeline build -verbose -skipMacroValidation
