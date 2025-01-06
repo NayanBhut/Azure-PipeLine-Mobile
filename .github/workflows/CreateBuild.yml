@@ -17,7 +17,7 @@ jobs:
       - name: Generate android and iOS build
         run: |
           npm install && cd ios && pod install
-          xcodebuild -sdk iphoneos -configuration Debug -workspace "AzurePipeline.xcworkspace"  -scheme "AzurePipeline" -sdk iphonesimulator -derivedDataPath $(pwd)
+          xcodebuild -sdk iphonesimulator -configuration Debug -workspace "AzurePipeline.xcworkspace" -scheme "AzurePipeline" -derivedDataPath $(pwd)
           cd ..
           cd android
           "$(pwd)/gradlew" assembleRelease
