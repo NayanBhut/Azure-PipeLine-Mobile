@@ -7,8 +7,34 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-    name: Generate android and iOS build
+  android_build:
+    name: Generate android build
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Generate android apk
+        run: |
+          npm install
+          cd android
+          java --version
+          "$(pwd)/gradlew" assembleRelease
+          find $PWD -type f | grep "app-release.apk"
+          ls -la $(pwd)/app/build/outputs/apk/release #/app-release.apk
+          find . | sed -e "s/[^-][^\/]*\// |/g" -e "s/|\([^ ]\)/|-\1/"
+      - name: Check Build Path
+        run: |
+          ls -la "$(pwd)"
+          find $PWD -type f | grep "app-release.apk"    
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Azure_pipeline.apk
+          path: "android/app/build/outputs/apk/release/app-release.apk"
+          
+
+  iOS_build:
+    name: Generate iOS simulator build
     runs-on: macos-latest
 
     steps:
@@ -18,7 +44,4 @@ jobs:
         run: |
           npm install && cd ios && pod install
           xcodebuild -sdk iphonesimulator -configuration Debug -workspace "AzurePipeline.xcworkspace" -scheme "AzurePipeline" -derivedDataPath $(pwd)
-          cd ..
-          cd android
-          "$(pwd)/gradlew" assembleRelease
           # xcodebuild -sdk iphoneos -configuration Debug -workspace AzurePipeline.xcworkspace -scheme AzurePipeline build -verbose -skipMacroValidation
