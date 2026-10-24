@@ -4,14 +4,20 @@
 
 import 'react-native';
 import React from 'react';
+import {it, expect} from '@jest/globals';
+import renderer, {act} from 'react-test-renderer';
 import App from '../src/App';
 
-// Note: import explicitly to use the types shipped with jest.
-import {it} from '@jest/globals';
+it('renders the login screen', async () => {
+  let tree: renderer.ReactTestRenderer | undefined;
 
-// Note: test renderer must be required after react-native.
-import renderer from 'react-test-renderer';
+  await act(async () => {
+    tree = renderer.create(<App />);
+  });
 
-it('renders correctly', () => {
-  renderer.create(<App />);
+  expect(tree?.toJSON()).toBeTruthy();
+
+  await act(async () => {
+    tree?.unmount();
+  });
 });

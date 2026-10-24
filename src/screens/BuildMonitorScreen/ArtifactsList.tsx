@@ -1,20 +1,26 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import {Artifacts} from '../../APICall/APIModel/ArtifactModel'; // Import Artifact model for type
 import RNFS from 'react-native-fs'; // React Native File System to handle file operations
+import Share from 'react-native-share'; // Lets the user save/share the downloaded artifact
 import {
   ActivityIndicator,
   Alert,
-  Linking,
-  PermissionsAndroid,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native'; // Import necessary React Native components
-import AsyncStorage from '@react-native-async-storage/async-storage'; // For storing/retrieving data locally
+import {getAuthorizationHeader} from '../../Common/SecureStorage';
+import {isTrustedAzureDevOpsUrl} from '../../Common/NetworkSecurity';
+import {sanitizeFileName} from '../../Common/Validation';
 
-const ArtifactsList = ({item, buildID}: {item: Artifacts; buildID: string}) => {
+const ArtifactsList = ({
+  item,
+  buildID,
+}: {
+  item: Artifacts;
+  buildID: string | number;
+}) => {
   // State to track the download process
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -28,47 +34,67 @@ const ArtifactsList = ({item, buildID}: {item: Artifacts; buildID: string}) => {
     return Math.round(bytes / Math.pow(1024, i)) + ' ' + sizes[i];
   };
 
+  // Artifacts are downloaded into app-scoped cache storage. No broad storage
+  // permission (MANAGE_EXTERNAL_STORAGE) is required, and the files are not
+  // backed up to iCloud/Google.
+  const getDownloadDestination = useCallback(
+    (fileName: string) => {
+      const safeBuildId = sanitizeFileName(String(buildID), 'build');
+      const safeName = sanitizeFileName(fileName, 'artifact');
+      return `${RNFS.CachesDirectoryPath}/${safeBuildId}_${safeName}.zip`;
+    },
+    [buildID],
+  );
+
+  const shareDownloadedFile = async (filePath: string) => {
+    try {
+      await Share.open({
+        url: `file://${filePath}`,
+        type: 'application/zip',
+        filename: filePath.split('/').pop(),
+        failOnCancel: false,
+      });
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Share failed', error);
+      }
+    }
+  };
+
   // Function to handle file download
   const downloadFile = async (fileName: string, url: string) => {
+    const downloadDest = getDownloadDestination(fileName);
     setIsDownloading(true); // Set downloading flag to true
-
-    console.log(`Downloading ${url}`);
-
-    // Determine the local destination for the file based on platform (Android/iOS)
-    const fileUrl = url; // The URL to download the file from
-    let downloadDest =
-      RNFS.DownloadDirectoryPath + `/${buildID}_${fileName}.zip`; // Default path for Android
-    if (Platform.OS === 'ios') {
-      downloadDest = RNFS.DocumentDirectoryPath + `/${buildID}_${fileName}.zip`; // Path for iOS
-    }
-
-    console.log(downloadDest);
 
     try {
       // Check if the file already exists
       const fileExists = await RNFS.exists(downloadDest);
       if (fileExists) {
-        Alert.alert('File already exists'); // Alert user if the file already exists
+        Alert.alert('Already downloaded', undefined, [
+          {text: 'Close', style: 'cancel'},
+          {
+            text: 'Share / Save',
+            onPress: () => shareDownloadedFile(downloadDest),
+          },
+        ]);
         return;
       }
 
-      // Retrieve the authentication token from AsyncStorage
-      const token = await AsyncStorage.getItem('token');
+      // Only attach the PAT to Azure DevOps hosts. Other URLs (for example
+      // pre-signed blob URLs) are downloaded without credentials.
+      const trustedHost = isTrustedAzureDevOpsUrl(url);
+      const token = trustedHost ? await getAuthorizationHeader() : null;
 
-      if (!token) {
-        console.error('Token is missing.'); // If no token, log and return
+      if (trustedHost && !token) {
+        Alert.alert('Session expired', 'Please log in again.');
         return;
       }
-
-      const headers = {
-        Authorization: token, // Attach token to the request header
-      };
 
       // Start the file download
       const download = RNFS.downloadFile({
-        fromUrl: fileUrl, // URL of the file to download
+        fromUrl: url, // URL of the file to download
         toFile: downloadDest, // Local path to save the downloaded file
-        headers: headers, // Request headers (with Authorization)
+        headers: token ? {Authorization: token} : {}, // Only send the token to trusted hosts
         background: true, // Allow background download
       });
 
@@ -77,76 +103,36 @@ const ArtifactsList = ({item, buildID}: {item: Artifacts; buildID: string}) => {
 
       // Check if the download was successful
       if (result.statusCode === 200) {
-        Alert.alert(`${item.name} Downloaded successfully`);
+        Alert.alert(
+          `${item.name} downloaded`,
+          'The artifact is stored in the app’s private storage. Share or save it to your Files/Downloads.',
+          [
+            {text: 'Close', style: 'cancel'},
+            {
+              text: 'Share / Save',
+              onPress: () => shareDownloadedFile(downloadDest),
+            },
+          ],
+        );
+      } else if (result.statusCode === 401 || result.statusCode === 403) {
+        Alert.alert('Session expired', 'Please log in again.');
       } else {
-        Alert.alert(`Download failed ${result.statusCode}`);
+        Alert.alert(`Download failed (${result.statusCode})`);
       }
     } catch (error) {
-      console.error('Download error:', error); // Log download errors
-      Alert.alert('Error downloading file'); // Alert on error
+      if (__DEV__) {
+        console.error('Download error', error);
+      }
+      Alert.alert('Error downloading file');
     } finally {
       setIsDownloading(false); // Set downloading flag to false after operation
-    }
-  };
-
-  // Function to open settings for permission changes
-  const openSettings = () => {
-    Linking.openSettings(); // Opens device settings to manage permissions
-  };
-
-  // Function to handle permissions on Android
-  const getPermission = async (fileName: string, url: string) => {
-    if (Platform.OS === 'android') {
-      const releaseVersion = parseFloat(Platform.constants.Release);
-
-      if (!isNaN(releaseVersion) && releaseVersion >= 13) {
-        downloadFile(fileName, url); // If version >= 13, proceed with download directly
-        return;
-      }
-
-      try {
-        // Request permission to manage external storage (for Android below version 13)
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.MANAGE_EXTERNAL_STORAGE,
-          {
-            title: 'Storage Permission',
-            message:
-              'This app needs access to all files on your device to save and read data.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          },
-        );
-
-        // Check if permission was granted
-        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-          console.log('Permission granted');
-          downloadFile(fileName, url); // Proceed with the download if permission granted
-        } else {
-          // If permission is denied, show an alert with an option to open settings
-          Alert.alert(
-            'Permission Denied',
-            'This app requires access to all files. Please enable it in settings.',
-            [{text: 'Open Settings', onPress: openSettings}],
-          );
-        }
-      } catch (err) {
-        console.warn('Permission error:', err); // Log permission errors
-      }
-    } else {
-      downloadFile(fileName, url); // For iOS or other platforms, directly call download
     }
   };
 
   // Function to check the download status of the file
   const getDownloadStatus = useCallback(
     async (fileName: string): Promise<string> => {
-      let downloadDest =
-        RNFS.DownloadDirectoryPath + `/${buildID}_${fileName}.zip`; // Default path for Android
-      if (Platform.OS === 'ios') {
-        downloadDest =
-          RNFS.DocumentDirectoryPath + `/${buildID}_${fileName}.zip`; // Path for iOS
-      }
+      const downloadDest = getDownloadDestination(fileName);
 
       // Check if the file exists at the download destination
       const fileExists = await RNFS.exists(downloadDest);
@@ -160,7 +146,7 @@ const ArtifactsList = ({item, buildID}: {item: Artifacts; buildID: string}) => {
         }
       }
     },
-    [buildID, isDownloading], // Dependency on buildID and downloading state
+    [getDownloadDestination, isDownloading], // Dependency on buildID and downloading state
   );
 
   // State to hold the download status of the file (Download, Downloaded, or Downloading)
@@ -199,7 +185,7 @@ const ArtifactsList = ({item, buildID}: {item: Artifacts; buildID: string}) => {
               pressed && styles.downloadButtonPressed,
             ]}
             onPress={async () => {
-              getPermission(item.name, item.resource.downloadUrl); // Request permission and trigger download
+              await downloadFile(item.name, item.resource.downloadUrl); // Download into app-scoped storage
             }}>
             <Text style={styles.downloadText}>
               {downloadStatus !== null ? downloadStatus : 'Loading...'}{' '}

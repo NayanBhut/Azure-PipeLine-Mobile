@@ -1,0 +1,35 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      react-native:
+        patterns:
+          - react
+          - react-native
+          - '@react-native*'
+          - '@react-navigation*'
+    ignore:
+      # React Native minor upgrades need a matching template update and native
+      # project changes. Handle these deliberately.
+      - dependency-name: react-native
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: gradle
+    directory: /android
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: bundler
+    directory: /
+    schedule:
+      interval: monthly

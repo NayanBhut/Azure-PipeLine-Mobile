@@ -1,22 +1,33 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-  <uses-permission android:name="android.permission.INTERNET" />
-  <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
-  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-    android:maxSdkVersion="32" />
-  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-    android:maxSdkVersion="29" />
+    <!-- The app only needs network access to talk to dev.azure.com. Broad
+         storage permissions (MANAGE_EXTERNAL_STORAGE / READ_EXTERNAL_STORAGE /
+         WRITE_EXTERNAL_STORAGE) were removed: artifacts are saved in
+         app-scoped cache storage and exported through the system share sheet. -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
-  <application
-    android:name=".MainApplication"
-    android:label="@string/app_name"
-    android:icon="@mipmap/ic_launcher"
-    android:roundIcon="@mipmap/ic_launcher_round"
-    android:allowBackup="false"
-    android:theme="@style/AppTheme"
-    android:supportsRtl="true"
-    android:requestLegacyExternalStorage="true"
-  >
+    <!-- Transitive libraries declare broad storage and biometric permissions
+         that this app does not use. Remove them from the merged manifest so the
+         store listing requests the minimum set of permissions. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:node="remove" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" tools:node="remove" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" tools:node="remove" />
+
+    <application
+        android:name=".MainApplication"
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:enableOnBackInvokedCallback="true"
+        android:theme="@style/AppTheme"
+        android:supportsRtl="true">
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"

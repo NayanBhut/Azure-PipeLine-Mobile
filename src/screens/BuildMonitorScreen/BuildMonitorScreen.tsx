@@ -1,4 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Non-sensitive session settings
+import {getAuthorizationHeader} from '../../Common/SecureStorage';
 import React, {useState, useEffect} from 'react';
 import {
   View,
@@ -6,7 +7,6 @@ import {
   FlatList,
   StyleSheet,
   RefreshControl,
-  ActivityIndicator,
   Alert,
   Pressable,
 } from 'react-native';
@@ -21,9 +21,16 @@ import TaskCard from './TaskCard'; // Task card component to display task detail
 import ArtifactsList from './ArtifactsList'; // Artifacts list component to display downloaded artifacts
 import API_CONFIG from '../../APICall/APIConstants'; // API configuration constants
 import FullScreenLoader from '../../Common/FullScreenLoader'; // Loader for full screen loading state
+import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {RootStackParamList} from '../../navigation/types';
+
+type BuildMonitorProps = NativeStackScreenProps<
+  RootStackParamList,
+  'BuildMonitorScreen'
+>;
 
 // Main Screen Component
-const BuildMonitorScreen = ({route, navigation}) => {
+const BuildMonitorScreen = ({route, navigation}: BuildMonitorProps) => {
   // States to manage various aspects of the screen
   const [filteredLogs, setFilteredTasks] = useState<BuildRecord[]>([]); // Filtered build logs
   const [, setLogModel] = useState<BuildLogsModel | null>(null); // Log model state (not used directly here)
@@ -42,7 +49,7 @@ const BuildMonitorScreen = ({route, navigation}) => {
   const fetchData = async (projectID: string, buildId: number) => {
     setIsLoading(true); // Set loading state
     try {
-      const token = await AsyncStorage.getItem('token'); // Get token from async storage
+      const token = await getAuthorizationHeader(); // Read the token from Keychain/Keystore
       const org = await AsyncStorage.getItem('org'); // Get organization from async storage
 
       if (!token || !org) {
@@ -75,10 +82,12 @@ const BuildMonitorScreen = ({route, navigation}) => {
           setFilteredTasks(filteredTaskLogs); // Update filtered logs state
         })
         .catch(error => {
-          console.error(error); // Log error
+          if (__DEV__) {
+            console.error(error);
+          }
           setIsLoading(false); // Turn off loading state on error
         });
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to fetch data. Please try again.', [
         {text: 'OK'},
       ]);
@@ -90,9 +99,11 @@ const BuildMonitorScreen = ({route, navigation}) => {
   // Fetch artifacts related to the build
   const fetchArtifacts = async (projectID: string, buildId: number) => {
     setIsLoading(true); // Set loading state
-    console.log('buildId : ', buildId);
+    if (__DEV__) {
+      console.log('Fetching artifacts for build', buildId);
+    }
     try {
-      const token = await AsyncStorage.getItem('token'); // Get token from async storage
+      const token = await getAuthorizationHeader(); // Read the token from Keychain/Keystore
       const org = await AsyncStorage.getItem('org'); // Get organization from async storage
 
       if (!token || !org) {
@@ -122,10 +133,12 @@ const BuildMonitorScreen = ({route, navigation}) => {
           setArtifacts(buildArtifacts); // Set artifacts state
         })
         .catch(error => {
-          console.error(error); // Log error
+          if (__DEV__) {
+            console.error(error);
+          }
           setIsLoading(false); // Turn off loading state on error
         });
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to fetch data. Please try again.', [
         {text: 'OK'},
       ]);
@@ -138,6 +151,9 @@ const BuildMonitorScreen = ({route, navigation}) => {
   useEffect(() => {
     fetchData(route.params.appID, route.params.buildID); // Fetch build logs
     fetchArtifacts(route.params.appID, route.params.buildID); // Fetch artifacts
+    // Intentionally keyed on route only: the fetch helpers are recreated on
+    // every render and must not retrigger this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route]); // Dependency on route to trigger re-fetching when route changes
 
   return (

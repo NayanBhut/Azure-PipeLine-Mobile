@@ -1,4 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage to handle local storage
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Non-sensitive session settings
+import {getAuthorizationHeader} from '../../Common/SecureStorage';
 import React, {useEffect, useState, useCallback} from 'react'; // React and hooks for component state and lifecycle
 import {
   FlatList, // FlatList for rendering list of pipelines
@@ -13,9 +14,16 @@ import ListEmptyComponent from '../../Common/ListEmptyComponent'; // Empty list 
 import ListFooterComponent from '../../Common/ListFooterComponent'; // Footer component for loading indication during pagination
 import API_CONFIG from '../../APICall/APIConstants'; // API endpoint configurations
 import FullScreenLoader from '../../Common/FullScreenLoader'; // Full-screen loader component to show loading state
+import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {RootStackParamList} from '../../navigation/types';
+
+type PipeLineListProps = NativeStackScreenProps<
+  RootStackParamList,
+  'PipeLineList'
+>;
 
 // Main functional component for displaying list of pipelines for a given app
-function PipeLineList({route, navigation}): React.JSX.Element {
+function PipeLineList({route, navigation}: PipeLineListProps): React.JSX.Element {
   // State variables for managing the list of pipelines and loading states
   const [pipelines, setPipelines] = useState<PipeLine[]>([]); // Stores list of pipeline objects
   const [isLoading, setIsLoading] = useState(false); // Loading state to show loading spinner when fetching data
@@ -27,7 +35,7 @@ function PipeLineList({route, navigation}): React.JSX.Element {
   const callGetPipelineAPI = useCallback(
     async (projectID: string) => {
       // Retrieve stored token and organization info from AsyncStorage
-      const token = await AsyncStorage.getItem('token');
+      const token = await getAuthorizationHeader(); // Read the token from Keychain/Keystore
       const org = await AsyncStorage.getItem('org');
 
       if (!token || !org) {
@@ -58,7 +66,9 @@ function PipeLineList({route, navigation}): React.JSX.Element {
           setIsLoading(false); // Set loading state to false once data is fetched
         })
         .catch(error => {
-          console.error(error); // Log any error that occurs during the API call
+          if (__DEV__) {
+            console.error(error);
+          }
           setIsLoading(false); // Set loading state to false on error
         });
     },
@@ -70,6 +80,9 @@ function PipeLineList({route, navigation}): React.JSX.Element {
     if (route.params?.appID) {
       callGetPipelineAPI(route.params.appID); // Fetch pipelines for the given appID
     }
+    // Keyed on appID only; adding the paginated callback would re-fetch after
+    // every page because the continuation token is part of its identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route.params.appID]); // This effect runs whenever appID changes in the route params
 
   // Function to handle loading more pipelines when the user scrolls to the bottom of the list
@@ -83,10 +96,9 @@ function PipeLineList({route, navigation}): React.JSX.Element {
   const renderPipeline = ({item}: {item: PipeLine}) => (
     <Pressable
       onPress={() => {
-        console.log(`Pressed ${item.name}`); // Log when a pipeline is pressed
         navigation.navigate('BuildList', {
           appID: route.params.appID, // Pass appID to the BuildList screen
-          pipelineID: item.id, // Pass pipeline ID to navigate to build details
+          pipelineID: String(item.id), // Pass pipeline ID to navigate to build details
         });
       }}>
       <View style={styles.pipelineItem}>

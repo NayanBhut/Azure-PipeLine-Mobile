@@ -19,7 +19,6 @@ const FullLogModal = (props: FullLogModalProps) => {
   useEffect(() => {
     const chunks = props.logs.split('\n'); // Split logs by newline character
     setLogChunks(chunks); // Update state with the new log chunks
-    console.log(chunks.length); // Log the number of chunks (for debugging)
   }, [props.logs]); // Only re-run the effect when logs prop changes
 
   // Scroll to the bottom whenever the log chunks change (new logs added)
@@ -53,7 +52,7 @@ const FullLogModal = (props: FullLogModalProps) => {
             decelerationRate="fast"
             keyExtractor={(item, index) => index.toString()} // Key each item by its index
             showsVerticalScrollIndicator={false} // Hide vertical scroll indicator
-            contentContainerStyle={{paddingBottom: 0}} // Adjust container padding if needed
+            contentContainerStyle={styles.listContent} // Adjust container padding if needed
           />
         </View>
       </View>
@@ -62,6 +61,7 @@ const FullLogModal = (props: FullLogModalProps) => {
 };
 
 const styles = StyleSheet.create({
+  listContent: {paddingBottom: 0},
   modalOverlay: {
     flex: 1, // Take up the full screen
     justifyContent: 'center', // Center the modal vertically

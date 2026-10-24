@@ -9,7 +9,8 @@ import {
   SafeAreaView,
   RefreshControl,
 } from 'react-native'; // Import necessary components from React Native
-import AsyncStorage from '@react-native-async-storage/async-storage'; // To store and retrieve data locally
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Non-sensitive session settings
+import {getAuthorizationHeader} from '../../Common/SecureStorage';
 import ApiService from '../../APICall/APIService'; // API service for making API calls
 import {Build, BuildListModel} from '../../APICall/APIModel/BuildListModel'; // Types for Build and Build List models
 import ListEmptyComponent from '../../Common/ListEmptyComponent'; // A component to display when no builds are available
@@ -17,9 +18,13 @@ import ListFooterComponent from '../../Common/ListFooterComponent'; // Footer co
 import BuildTriggerModal from '../BuildTriggrModal/BuildTriggerModal'; // Modal component to trigger a new build
 import API_CONFIG from '../../APICall/APIConstants'; // API configuration constants
 import FullScreenLoader from '../../Common/FullScreenLoader'; // Full-screen loader component to indicate loading state
+import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {RootStackParamList} from '../../navigation/types';
+
+type BuildListProps = NativeStackScreenProps<RootStackParamList, 'BuildList'>;
 
 // Main functional component for the Build List screen
-const BuildList = ({route, navigation}) => {
+const BuildList = ({route, navigation}: BuildListProps) => {
   // State variables to manage builds list, loading, modal visibility, and pagination
   const [builds, setBuilds] = useState<Build[]>([]); // Stores list of builds
   const [isLoading, setIsLoading] = useState(false); // Controls loading state
@@ -31,8 +36,11 @@ const BuildList = ({route, navigation}) => {
   const [isReload, setIsReloadList] = useState<boolean>(false); // Controls whether to reload the build list from scratch
 
   // Fetch builds from the Azure DevOps API
-  const fetchBuilds = async (projectID: string, definitions: number) => {
-    const token = await AsyncStorage.getItem('token'); // Retrieve auth token from AsyncStorage
+  const fetchBuilds = async (
+    projectID: string,
+    definitions: string | number,
+  ) => {
+    const token = await getAuthorizationHeader(); // Retrieve auth token from Keychain/Keystore
     const org = await AsyncStorage.getItem('org'); // Retrieve organization from AsyncStorage
 
     if (!token || !org) {
@@ -69,7 +77,9 @@ const BuildList = ({route, navigation}) => {
         }
       })
       .catch(error => {
-        console.error(error); // Log any error encountered during the API call
+        if (__DEV__) {
+          console.error(error);
+        }
         setIsLoading(false); // Set loading state to false if an error occurs
       });
   };
@@ -87,11 +97,16 @@ const BuildList = ({route, navigation}) => {
         />
       ),
     });
+    // navigation is stable for the lifetime of the screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [builds]); // Only re-run this effect when `builds` changes
 
   // Fetch builds when the component mounts or when route parameters change
   useEffect(() => {
     fetchBuilds(route.params.appID, route.params.pipelineID);
+    // Fetching is keyed on route params only; continuation state is handled
+    // inside fetchBuilds.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route.params]); // Re-run this effect whenever `appID` or `pipelineID` in route changes
 
   // Fetch builds when `isReload` state is set to true (manual refresh)
@@ -99,6 +114,7 @@ const BuildList = ({route, navigation}) => {
     if (isReload) {
       fetchBuilds(route.params.appID, route.params.pipelineID);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReload]);
 
   // Function to get appropriate styles for build result based on its status
