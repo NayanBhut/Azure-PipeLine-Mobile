@@ -33,6 +33,11 @@
   enabled.
 - CI hardened with read-only permissions, `npm ci`, `npm audit`, type-check,
   lint and tests.
+- GitHub Actions updated to the current majors (checkout v7, setup-node v7,
+  setup-java v6, setup-gradle v6, setup-android v4, upload-artifact v7, cache
+  v6), with job timeouts and a CocoaPods download cache. CocoaPods is still
+  required by the RN 0.88 Podfile even though direct `pod install` usage is
+  deprecated in favour of SPM.
 
 ### Store readiness
 - App icons for iPhone, iPad and Android (legacy + adaptive), plus Play Store
