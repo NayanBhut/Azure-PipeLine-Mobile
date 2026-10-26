@@ -78,7 +78,12 @@ jobs:
         uses: android-actions/setup-android@v4
 
       - name: Install required Android SDK packages
-        run: sdkmanager --install "platforms;android-37" "build-tools;37.0.0"
+        run: |
+          sdkmanager --install \
+            "platforms;android-37.0" \
+            "build-tools;37.0.0" \
+            "ndk;27.1.12297006" \
+            "cmake;3.22.1"
 
       - name: Install dependencies
         run: npm ci
