@@ -43,7 +43,7 @@ const API_CONFIG = {
       list: (
         orgName: string,
         projectID: string,
-        definitions: number,
+        definitions: number | string,
         continuationToken: string | null,
       ) => {
         const nextPageToken =
@@ -83,43 +83,6 @@ const API_CONFIG = {
       },
     },
   },
-
-  // API Keys or other constants
-  // apiKeys: {
-  //   personalAccessToken: 'your-personal-access-token',
-  //   // Add more keys as needed
-  // },
-
-  // getOrgname: () => {
-  //   const org = await AsyncStorage.getItem('org');
-  //   if (!org) {
-  //       Alert.alert('organization URL is missing.');
-  //       return;
-  //     }
-  //     API_CONFIG.baseURL = org;
-  // },
-
-  // Headers
-  // headers: {
-  //   contentType: 'application/json',
-  //   authorization: `Basic ${Buffer.from(
-  //     `:${AzureDevOpsAPIConstants.apiKeys.personalAccessToken}`,
-  //   ).toString('base64')}`,
-  //   // Add more headers as needed
-  // },
-
-  // Method to update base URL
-  // updateBaseURL: newBaseURL => {
-  //   API_CONFIG.baseURL = newBaseURL;
-  // },
-
-  // Method to update personal access token
-  // updatePersonalAccessToken: newToken => {
-  //   AzureDevOpsAPIConstants.apiKeys.personalAccessToken = newToken;
-  //   AzureDevOpsAPIConstants.headers.authorization = `Basic ${Buffer.from(
-  //     `:${newToken}`,
-  //   ).toString('base64')}`;
-  // },
 };
 
 export default API_CONFIG;

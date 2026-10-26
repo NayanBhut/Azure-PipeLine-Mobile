@@ -8,29 +8,22 @@ import {
   Pressable,
   Alert,
 } from 'react-native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack'; // For typing navigation props
-import {RouteProp} from '@react-navigation/native'; // For typing route props
+import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {ProjectModel, Project} from '../../APICall/APIModel/ProjectModel'; // Models for project data
-import AsyncStorage from '@react-native-async-storage/async-storage'; // For storing/retrieving data locally
-import ApiService, {ApiResponse} from '../../APICall/APIService'; // API service for making API calls
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Non-sensitive session settings
+import {
+  clearPersonalAccessToken,
+  getAuthorizationHeader,
+} from '../../Common/SecureStorage';
+import ApiService from '../../APICall/APIService'; // API service for making API calls
 import CustomButton from '../../Common/CustomButton'; // Custom button component for UI
 import ListFooterComponent from '../../Common/ListFooterComponent'; // Footer component for loading indicator
 import ListEmptyComponent from '../../Common/ListEmptyComponent'; // Empty list component to display when no data
 import API_CONFIG from '../../APICall/APIConstants'; // API configuration (base URL and endpoints)
 import CustomTextInput from '../../Common/CustomTextInput';
+import type {RootStackParamList} from '../../navigation/types';
 
-// Define navigation types for type safety
-type RootStackParamList = {
-  AppList: {
-    model: ApiResponse<ProjectModel>;
-    orgName: string;
-  };
-};
-
-type AppListProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'AppList'>; // Type for navigation prop
-  route: RouteProp<RootStackParamList, 'AppList'>; // Type for route prop
-};
+type AppListProps = NativeStackScreenProps<RootStackParamList, 'Apps List'>;
 
 // Main functional component for AppList screen
 const AppList = ({navigation, route}: AppListProps) => {
@@ -49,7 +42,7 @@ const AppList = ({navigation, route}: AppListProps) => {
   // Function to fetch the list of apps (projects)
   const getApps = async () => {
     try {
-      const token = await AsyncStorage.getItem('token'); // Get the saved token from AsyncStorage
+      const token = await getAuthorizationHeader(); // Read the token from Keychain/Keystore
       const org = await AsyncStorage.getItem('org'); // Get the saved organization name
 
       // Show error if either token or org is missing
@@ -88,10 +81,12 @@ const AppList = ({navigation, route}: AppListProps) => {
           setIsLoading(false); // Set loading state to false once data is fetched
         })
         .catch(error => {
-          console.error(error); // Log any errors
+          if (__DEV__) {
+            console.error(error);
+          }
           setIsLoading(false); // Set loading state to false on error
         });
-    } catch (error) {
+    } catch {
       // Show alert if fetching data fails
       Alert.alert('Error', 'Failed to fetch data. Please try again.', [
         {text: 'OK'},
@@ -137,15 +132,22 @@ const AppList = ({navigation, route}: AppListProps) => {
     navigation.setOptions({
       // Hide the back button on the header
       headerLeft: () => null,
+      // React Navigation requires a render function for header buttons.
+      // eslint-disable-next-line react/no-unstable-nested-components
       headerRight: () => (
         <CustomButton
           title="Logout"
           onPress={async () => {
             try {
-              await AsyncStorage.clear(); // Clear all data from AsyncStorage (logout action)
-              console.log('All keys have been removed from AsyncStorage');
+              await clearPersonalAccessToken(); // Remove the secret from Keychain/Keystore
+              await AsyncStorage.clear(); // Clear non-sensitive settings
+              if (__DEV__) {
+                console.log('Session cleared');
+              }
             } catch (error) {
-              console.error('Error clearing AsyncStorage:', error); // Log any errors while clearing AsyncStorage
+              if (__DEV__) {
+                console.error('Error clearing session:', error);
+              }
             }
             navigation.goBack(); // Go back to the previous screen after logout
           }}

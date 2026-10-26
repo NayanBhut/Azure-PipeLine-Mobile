@@ -1,18 +1,44 @@
+import {isTrustedAzureDevOpsUrl} from '../Common/NetworkSecurity';
+
 export interface Headers {
   [key: string]: string;
 }
-
-// New interface to include both data and headers
 export interface ApiResponse<T> {
   data: T;
   headers: Headers;
 }
 
+export class ApiError extends Error {
+  status?: number;
+  isUnauthorized: boolean;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.isUnauthorized = status === 401 || status === 203;
+  }
+}
+
+const DEFAULT_TIMEOUT_MS = 30_000;
+
 class ApiService {
   private baseURL: string;
+  private timeoutMs: number;
 
-  constructor(baseURL: string) {
+  constructor(baseURL: string, timeoutMs: number = DEFAULT_TIMEOUT_MS) {
+    if (!ApiService.isSecureUrl(baseURL)) {
+      throw new ApiError(
+        'Refusing to send credentials to an untrusted endpoint. Only Azure DevOps HTTPS URLs are allowed.',
+      );
+    }
+
     this.baseURL = baseURL;
+    this.timeoutMs = timeoutMs;
+  }
+
+  private static isSecureUrl(value: string): boolean {
+    return isTrustedAzureDevOpsUrl(value);
   }
 
   // Updated request method to return both data and headers
@@ -23,13 +49,17 @@ class ApiService {
     customHeaders: Headers = {},
   ): Promise<ApiResponse<T>> {
     const headers: Headers = {
+      Accept: 'application/json',
       'Content-Type': 'application/json',
       ...customHeaders,
     };
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     const options: RequestInit = {
       method,
       headers,
+      signal: controller.signal,
     };
 
     if (body) {
@@ -38,7 +68,6 @@ class ApiService {
 
     try {
       const response = await fetch(`${this.baseURL}${endpoint}`, options);
-      console.log('API Endpoint is ', `${this.baseURL}${endpoint}`);
 
       // Convert headers to plain object
       const responseHeaders: Headers = {};
@@ -48,14 +77,16 @@ class ApiService {
 
       if (!response.ok) {
         const errorData = await this.tryParseJson(response);
-        throw new Error(errorData?.message || 'API request failed');
+        throw new ApiError(
+          errorData?.message || `API request failed (${response.status})`,
+          response.status,
+        );
       }
 
       // Handle JSON responses
       const contentType = response.headers.get('Content-Type');
       if (contentType && contentType.includes('application/json')) {
         const json = await response.json();
-        // console.log('API Response is ', json);
         return {
           data: json as T,
           headers: responseHeaders,
@@ -69,16 +100,26 @@ class ApiService {
         };
       }
     } catch (error: any) {
-      console.log('API Endpoint is ', `${this.baseURL}${endpoint}`);
-      console.error(`API call failed: ${error.message}`);
+      if (error?.name === 'AbortError') {
+        throw new ApiError('The request timed out. Please try again.');
+      }
+
+      if (__DEV__) {
+        // Never log request URLs containing organization/project identifiers,
+        // and never log headers because they contain the authorization token.
+        console.error(`API call failed: ${error?.message ?? 'unknown error'}`);
+      }
+
       throw error;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
   private async tryParseJson(response: Response): Promise<any> {
     try {
       return await response.json();
-    } catch (e) {
+    } catch {
       return {};
     }
   }

@@ -1,32 +1,40 @@
-import base64 from 'base-64'; // Used for encoding the username and password in base64 for Basic Auth
+import {base64Encode} from '../../Common/Base64';
+import {
+  normalizePersonalAccessToken,
+  validatePersonalAccessToken,
+} from '../../Common/Validation';
 
 /**
- * Converts the provided username and password into a Basic Auth token.
+ * Builds the HTTP Basic authorization header expected by Azure DevOps.
  *
- * @param username - The username to be encoded.
- * @param password - The password to be encoded.
- * @returns A Basic Auth token string in the format "Basic <encodedCredentials>".
- * @throws Will throw an error if username, password are missing or if encoding fails.
+ * Azure DevOps ignores the username portion of Basic authentication and
+ * validates the personal access token supplied as the password. Only the
+ * token itself is treated as a secret.
  */
-// Helper function to convert username and password to Basic Auth token
 export function convertToBasicToken(
   username: string,
   password: string,
 ): string {
-  try {
-    if (!username || !password) {
-      throw 'Username and password are required'; // Throw error if username or password is empty
-    }
+  const token = normalizePersonalAccessToken(password);
+  const validationError = validatePersonalAccessToken(token);
 
-    const credentials = `${username}:${password}`; // Concatenate username and password
-    const base64Credentials = base64.encode(credentials); // Encode credentials in base64
-
-    if (!base64Credentials) {
-      throw 'Failed to encode credentials'; // Throw error if encoding fails
-    }
-
-    return `Basic ${base64Credentials}`; // Return the Basic Auth token
-  } catch (error) {
-    throw 'Failed to create Basic Auth token'; // Handle token creation failure
+  if (validationError) {
+    throw new Error(validationError);
   }
+
+  const basicToken = `Basic ${base64Encode(`${username}:${token}`)}`;
+
+  if (!basicToken) {
+    throw new Error('Failed to create Basic Auth token');
+  }
+
+  return basicToken;
+}
+
+/**
+ * Canonical form for a personal access token: an empty username with the token
+ * as the password. Prefer this when a username is not explicitly required.
+ */
+export function convertPatToBasicToken(personalAccessToken: string): string {
+  return convertToBasicToken('', personalAccessToken);
 }

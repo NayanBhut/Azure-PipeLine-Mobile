@@ -96,6 +96,8 @@ const BranchListAndSearch = (props: BranchListAndSearchProps) => {
   useEffect(() => {
     const data = hideBranchView(); // Get the current UI status
     setBranchUIStatus(data); // Update the branch UI status state
+    // hideBranchView is a pure helper recreated per render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.selectedRepository, props.selectedBranch]); // Re-run effect when repository or branch changes
 
   return (

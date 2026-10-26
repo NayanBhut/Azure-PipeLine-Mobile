@@ -3,12 +3,14 @@ import {
   Modal,
   View,
   Text,
+  TextInput,
   StyleSheet,
   Alert,
   Pressable,
 } from 'react-native';
 import ApiService from '../../APICall/APIService'; // API service for making requests
-import AsyncStorage from '@react-native-async-storage/async-storage'; // For storing/retrieving data locally
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Non-sensitive session settings
+import {getAuthorizationHeader} from '../../Common/SecureStorage';
 import {
   RepositoryDetail,
   RepositoryModel,
@@ -22,7 +24,6 @@ import BuildTriggerButton from './BuidTriggerComponents/BuildTriggerButtons'; //
 import CustomKeyForm from './BuidTriggerComponents/CustomKeyForm'; // Custom key input form
 import BranchListAndSearch from './BuidTriggerComponents/BranchListSearch'; // Branch selection & search component
 import ReposistoryList from './BuidTriggerComponents/RepositioryList'; // Repository list component
-import {TextInput} from 'react-native-gesture-handler'; // Text input component for branch name
 import API_CONFIG from '../../APICall/APIConstants'; // Configuration for API endpoints
 import FullScreenLoader from '../../Common/FullScreenLoader'; // Full-screen loading spinner
 
@@ -87,14 +88,14 @@ const BuildTriggerModal = (props: BuildTriggerModalProps) => {
   const [filterBranch, setFilterBranch] = useState<string | null>(null);
 
   const [editSelectedRepo, seteditSelectedRepo] = useState<boolean>(true);
-  const [editSelectedBranch, seteditSelectedBranch] = useState<boolean>(false);
+  const [, seteditSelectedBranch] = useState<boolean>(false);
 
   const [isAzureRepo, setIsAzureRepo] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
   // Fetch repositories from the API
   const fetchRepositories = useCallback(async () => {
-    const token = await AsyncStorage.getItem('token'); // Retrieve the token
+    const token = await getAuthorizationHeader(); // Read the token from Keychain/Keystore
     const org = await AsyncStorage.getItem('org'); // Retrieve the organization URL
 
     if (!token || !org) {
@@ -115,14 +116,18 @@ const BuildTriggerModal = (props: BuildTriggerModalProps) => {
       });
       setRepositories(response.data.value); // Store repositories data in state
     } catch (error) {
-      console.error('Failed to fetch repositories', error);
+      if (__DEV__) {
+        console.error('Failed to fetch repositories', error);
+      }
       Alert.alert('Error', 'Failed to fetch repositories'); // Show error message if fetching fails
     }
+    // props is intentionally not a dependency; only projectID selects the data.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.projectID]); // Dependency array, re-fetch if projectID changes
 
   // Fetch branches for a selected repository
   const fetchBranches = async (repositoryId: string) => {
-    const token = await AsyncStorage.getItem('token');
+    const token = await getAuthorizationHeader();
     const org = await AsyncStorage.getItem('org');
 
     if (!token || !org) {
@@ -155,7 +160,9 @@ const BuildTriggerModal = (props: BuildTriggerModalProps) => {
       const continuationtoken = response.headers['x-ms-continuationtoken']; // Get continuation token for pagination
       setContinuationToken(continuationtoken); // Update continuation token for next fetch
     } catch (error) {
-      console.error('Failed to fetch branches', error);
+      if (__DEV__) {
+        console.error('Failed to fetch branches', error);
+      }
       Alert.alert('Error', 'Failed to fetch branches');
     }
   };
@@ -280,7 +287,7 @@ const BuildTriggerModal = (props: BuildTriggerModalProps) => {
       return;
     }
 
-    const token = await AsyncStorage.getItem('token');
+    const token = await getAuthorizationHeader();
     const org = await AsyncStorage.getItem('org');
 
     if (!token || !org) {
@@ -326,10 +333,12 @@ const BuildTriggerModal = (props: BuildTriggerModalProps) => {
         setIsLoading(false); // Hide loading spinner
       })
       .catch(error => {
-        console.error(error);
+        if (__DEV__) {
+          console.error(error);
+        }
         setIsLoading(false); // Hide loading spinner
         Alert.alert('Build Trigger Error', (error as Error).message, [
-          {text: 'OK', onPress: () => console.log('Error pressed')},
+          {text: 'OK'},
         ]);
       });
   };

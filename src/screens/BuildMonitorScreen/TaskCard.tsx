@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import ApiService from '../../APICall/APIService'; // Service to make API calls
-import AsyncStorage from '@react-native-async-storage/async-storage'; // For accessing the device storage
+import {getAuthorizationHeader} from '../../Common/SecureStorage';
 import {BuildRecord} from '../../APICall/APIModel/BuildLogModel'; // Import model for build records
 
 import getDateDiff from '../../Common/Functions'; // Utility function to calculate time differences
@@ -69,7 +69,7 @@ const TaskCard = ({
   // Function to fetch logs from the server
   const getLogs = () => {
     return new Promise<void>((resolve, reject) => {
-      AsyncStorage.getItem('token') // Get token from AsyncStorage
+      getAuthorizationHeader() // Read the token from Keychain/Keystore
         .then(token => {
           if (!token) {
             reject('Token or organization URL is missing.'); // Handle missing token
@@ -93,14 +93,18 @@ const TaskCard = ({
               resolve(); // Resolve the promise after data is processed
             })
             .catch(error => {
-              console.error(error);
+              if (__DEV__) {
+                console.error(error);
+              }
               setTaskLogs(null); // Reset task logs if an error occurs
               setIsLoadingLogs(false); // Stop loading
               reject(error); // Reject the promise if the request fails
             });
         })
         .catch(error => {
-          console.error('Error getting token:', error); // Log any error with AsyncStorage
+          if (__DEV__) {
+            console.error('Error getting token:', error);
+          }
           reject(error); // Reject if token retrieval fails
         });
     });
