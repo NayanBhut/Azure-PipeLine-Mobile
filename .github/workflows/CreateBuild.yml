@@ -50,7 +50,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/ci-upload.keystore
+      # `runner` context is only available inside steps, so use the workspace.
+      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/ci-upload.keystore
       ANDROID_KEYSTORE_PASSWORD: ci-temporary-password
       ANDROID_KEY_ALIAS: ci-upload
       ANDROID_KEY_PASSWORD: ci-temporary-password
@@ -77,7 +78,12 @@ jobs:
         uses: android-actions/setup-android@v4
 
       - name: Install required Android SDK packages
-        run: sdkmanager --install "platforms;android-37" "build-tools;37.0.0"
+        run: |
+          sdkmanager --install \
+            "platforms;android-37.0" \
+            "build-tools;37.0.0" \
+            "ndk;27.1.12297006" \
+            "cmake;3.22.1"
 
       - name: Install dependencies
         run: npm ci
