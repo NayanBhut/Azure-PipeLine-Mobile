@@ -57,6 +57,13 @@ updates:
     directory: /android
     schedule:
       interval: monthly
+    ignore:
+      # The Gradle wrapper is tied to React Native's Kotlin/AGP toolchain and
+      # must be bumped as part of an RN upgrade. Gradle 9.8.2 ships Kotlin
+      # 2.4 metadata that RN 0.88's Kotlin 2.2 compiler cannot read.
+      - dependency-name: gradle-wrapper
+        update-types:
+          ['version-update:semver-minor', 'version-update:semver-major']
 
   - package-ecosystem: bundler
     directory: /
