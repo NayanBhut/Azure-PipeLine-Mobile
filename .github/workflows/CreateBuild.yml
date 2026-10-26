@@ -50,7 +50,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/ci-upload.keystore
+      # `runner` context is only available inside steps, so use the workspace.
+      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/ci-upload.keystore
       ANDROID_KEYSTORE_PASSWORD: ci-temporary-password
       ANDROID_KEY_ALIAS: ci-upload
       ANDROID_KEY_PASSWORD: ci-temporary-password
